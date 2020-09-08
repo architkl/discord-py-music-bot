@@ -25,6 +25,7 @@ class MusicCog(commands.Cog):
 		track_position - get position of current song
 		track_hook - disconnect player if no songs are in queue
 		connect_to - create websocket for connection to voice channel
+		can_interact - check whether the user can interact with the bot
 	"""
 
 	def __init__(self, bot):
@@ -50,21 +51,18 @@ class MusicCog(commands.Cog):
 			if not player.is_connected:
 				player.store("channel", ctx.channel.id)
 				await self.connect_to(ctx.guild.id, str(vc.id))
-				await ctx.send("👍 | Connected.")
+				await ctx.send(embed=create_embed("👍  | Connected", color=discord.Color.green()))
+
+		else:
+			await ctx.send(embed=create_embed("You're not in a voice channel!", color=discord.Color.orange()))
 
 	@commands.command(aliases=["dc"])
 	async def disconnect(self, ctx):
 		""" Disconnects the player from the voice channel and clears its queue"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-		if not player.is_connected:
-			# We can't disconnect, if we're not connected
-			return await ctx.send("Not connected.")
-
-		if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
-			# Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
-			# may not disconnect the bot
-			return await ctx.send("You\'re not in my voicechannel!")
+		if not (await self.can_interact(ctx)):
+			return
 
 		# Clear the queue to ensure old tracks don't start playing
 		# when someone else queues something
@@ -73,41 +71,45 @@ class MusicCog(commands.Cog):
 		await player.stop()
 		# Disconnect from the voice channel
 		await self.connect_to(ctx.guild.id, None)
-		await ctx.send("*⃣ | Disconnected.")
+		await ctx.send(embed=create_embed("*⃣  | Disconnected", color=discord.Color.red()))
 
 	@commands.command(name="play")
 	async def play(self, ctx, *, query):
 		"""Search for the song and play it"""
-		try:
-			player = self.bot.lavalink.player_manager.get(ctx.guild.id)
-			query = f'ytsearch:{query}'
+		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-			# use lavalink to search
-			results = await player.node.get_tracks(query)
+		if not (await self.can_interact(ctx)):
+			return
+		
+		query = f'ytsearch:{query}'
 
-			if not results or not results["tracks"]:
-				return await ctx.send("Nothing found!")
+		# use lavalink to search
+		results = await player.node.get_tracks(query)
 
-			# play the top search result
-			track = results["tracks"][0]
-			player.add(requester=ctx.author.id, track=track)
+		if not results or not results["tracks"]:
+			return await ctx.send(embed=create_embed(f'Nothing found for {query}', color=discord.Color.green()))
 
-			await ctx.send(embed=create_embed("Song queued!", f'[{track["info"]["title"]}] - ({track["info"]["uri"]})'))
+		# play the top search result
+		track = results["tracks"][0]
+		player.add(requester=ctx.author.id, track=track)
 
-			if not player.is_playing:
-				await player.play()
+		await ctx.send(embed=create_embed("Song queued!", f'[{track["info"]["title"]}] - ({track["info"]["uri"]})'))
 
-		except Exception as e:
-			print("Error in +play")
-			print(e)
+		if not player.is_playing:
+			await player.play()
 
 	@commands.command(name="plPlay")
 	async def plPlay(self, ctx, playlistName):
 		"""Play the stored playlist"""
+		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+		if not (await self.can_interact(ctx)):
+			return
+
 		name = self.playlistPath + playlistName + ".txt"
 
 		if (not(os.path.exists(name))):
-			await ctx.send("Playlist doesen't exist")
+			await ctx.send(embed=create_embed("Playlist doesen't exist", color=discord.Color.orange()))
 			return
 
 		# read playlist contents
@@ -118,78 +120,84 @@ class MusicCog(commands.Cog):
 			await ctx.send(embed=create_embed(playlistName, "Empty Playlist"))
 
 		else:
+			await ctx.send(embed=create_embed("Now Playing: " + playlistName, desc))
+
 			songs = desc.strip('\n').split('\n')
 
-			# invoke the play function for searching and playing the songs
-			for song in songs:
-				await ctx.invoke(self.bot.get_command("play"), query=song)
+			# Didn't invoke the play function because it sends notification for each song
+			for song in songs:			
+				query = f'ytsearch:{song}'
+
+				# use lavalink to search
+				results = await player.node.get_tracks(query)
+
+				if not results or not results["tracks"]:
+					await ctx.send(embed=create_embed(f'Nothing found for {song}', color=discord.Color.orange()))
+					continue
+
+				# play the top search result
+				track = results["tracks"][0]
+				player.add(requester=ctx.author.id, track=track)
+
+			if not player.is_playing:
+				await player.play()
 
 	@commands.command(name="pause")
 	async def pause(self, ctx):
 		"""Pause / Play the player"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-		# check if player is in a voice channel
-		if not player or not player.is_connected:
-			return await ctx.send("Not connected.")
+		if not (await self.can_interact(ctx)):
+			return
 
-		else:
-			await player.set_pause(not(player.paused))
-			await ctx.send("Paused!" if player.paused else "Playing!")
+		await player.set_pause(not(player.paused))
+		await ctx.send(embed=create_embed("Paused!" if player.paused else "Playing!"))
 
 	@commands.command(name="next")
 	async def next(self, ctx):
 		"""Plays the next song"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-		# check if player is in a voice channel
-		if not player or not player.is_connected:
-			return await ctx.send("Not connected.")
+		if not (await self.can_interact(ctx)):
+			return
 
-		else:
-			await player.skip()
-			await ctx.send("Skipping current song!")
+		await player.skip()
+		await ctx.send(embed=create_embed("Skipping current song!"))
 
 	@commands.command(name="shuffle")
 	async def shuffle(self, ctx):
 		"""Next song is random / in order"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-		# check if player is in a voice channel
-		if not player or not player.is_connected:
-			return await ctx.send("Not connected.")
+		if not (await self.can_interact(ctx)):
+			return
 
-		else:
-			player.set_shuffle(not(player.shuffle))
-			await ctx.send("Now shuffling tracks!" if player.shuffle else "Now playing tracks in order!")
+		player.set_shuffle(not(player.shuffle))
+		await ctx.send(embed=create_embed("Now shuffling tracks!" if player.shuffle else "Now playing tracks in order!"))
 
 	@commands.command(name="loop")
 	async def loop(self, ctx):
 		"""Loops the queue"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-		# check if player is in a voice channel
-		if not player or not player.is_connected:
-			return await ctx.send("Not connected.")
+		if not (await self.can_interact(ctx)):
+			return
 
-		else:
-			player.set_repeat(not(player.repeat))
-			await ctx.send("Looping enabled!" if player.repeat else "Looping disabled!")
+		player.set_repeat(not(player.repeat))
+		await ctx.send(embed=create_embed("Looping enabled!" if player.repeat else "Looping disabled!"))
 
 	@commands.command(name="trackPosition")
 	async def track_position(self, ctx):
 		"""Get the current position of song"""
-		try:
-			player = self.bot.lavalink.player_manager.get(ctx.guild.id)
-			
-			# Use format_time from lavalink.utils to convert milliseconds to HH:MM:SS
-			await ctx.send(embed=create_embed("Now Playing", str(player.current.title) +":\n" \
-				+ lavalink.format_time(player.position) + " / " \
-				+ lavalink.format_time(player.current.duration)))
+		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-		except Exception as e:
-			print("Error in +trackPosition")
-			print(e)
+		if not (await self.can_interact(ctx)):
+			return
+		
+		# Use format_time from lavalink.utils to convert milliseconds to HH:MM:SS
+		await ctx.send(embed=create_embed("Now Playing", str(player.current.title) +":\n" \
+			+ lavalink.format_time(player.position) + " / " \
+			+ lavalink.format_time(player.current.duration)))
 
 	async def track_hook(self, event):
 		if isinstance(event, lavalink.events.QueueEndEvent):
@@ -200,7 +208,24 @@ class MusicCog(commands.Cog):
 		ws = self.bot._connection._get_websocket(guild_id)
 		await ws.voice_state(str(guild_id), channel_id)
 
-def create_embed(title, desc, color=discord.Color.blurple()):
+	async def can_interact(self, ctx):
+		# checks whether the user can interact with the bot
+		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+		if not player or not player.is_connected:
+			# We can't disconnect, if we're not connected
+			await ctx.send(embed=create_embed("Not connected", color=discord.Color.orange()))
+			return False
+
+		if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+			# Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
+			# may not disconnect the bot
+			await ctx.send(embed=create_embed("You\'re not in my voicechannel!", color=discord.Color.orange()))
+			return False
+
+		return True
+
+def create_embed(title="", desc="", color=discord.Color.blurple()):
 	"""Create embeds with blurple colour"""
 	embed = Embed(color=color)
 	embed.title = title
