@@ -10,6 +10,7 @@ class StorageCog(commands.Cog):
 
 	@commands.command(name='createPlaylist')
 	async def createPlaylist(self, ctx, playlistName):
+		"""[playlist] - create playlist with this name"""
 		res = re.match(os.getenv('FILE_NAME_REGEX'), playlistName)
 
 		if (res == None):
@@ -27,6 +28,7 @@ class StorageCog(commands.Cog):
 
 	@commands.command(name='removePlaylist')
 	async def removePlaylist(self, ctx, playlistName):
+		"""[playlist] - remove playlist with this name"""
 		name = self.playlistPath + playlistName + ".txt"
 
 		if (not(os.path.exists(name))):
@@ -39,6 +41,7 @@ class StorageCog(commands.Cog):
 
 	@commands.command(name='showPlaylists')
 	async def showPlaylists(self, ctx):
+		"""Show all playlists"""
 		ls = []
 
 		for (dirpath, dirnames, filenames) in os.walk(self.playlistPath):
@@ -53,6 +56,7 @@ class StorageCog(commands.Cog):
 
 	@commands.command(name='describePlaylist')
 	async def describePlaylist(self, ctx, playlistName):
+		"""[playlist] - show songs in this playlist"""
 		name = self.playlistPath + playlistName + ".txt"
 
 		if (not(os.path.exists(name))):
@@ -71,6 +75,7 @@ class StorageCog(commands.Cog):
 
 	@commands.command(name='addSong')
 	async def addSong(self, ctx, playlistName, *, songName):
+		"""[playlist][song] - add song to playlist"""
 		name = self.playlistPath + playlistName + ".txt"
 
 		if (not(os.path.exists(name))):
@@ -94,6 +99,7 @@ class StorageCog(commands.Cog):
 
 	@commands.command(name='removeSong')
 	async def removeSong(self, ctx, playlistName, *, songName):
+		"""[playlist][song] - remove song from playlist"""
 		name = self.playlistPath + playlistName + ".txt"
 
 		if (not(os.path.exists(name))):

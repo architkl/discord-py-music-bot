@@ -38,7 +38,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(name="join")
 	async def join(self, ctx):
-		"""Connects bot to the voice channel of the user who invoked this command"""
+		"""Connect bot to your voice channel"""
 		# find user who invoked join command
 		member = utils.find(lambda m: m.id == ctx.author.id, ctx.guild.members)
 
@@ -58,7 +58,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(aliases=["dc"])
 	async def disconnect(self, ctx):
-		""" Disconnects the player from the voice channel and clears its queue"""
+		""" Disconnect the bot from the voice channel"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -75,7 +75,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(name="play")
 	async def play(self, ctx, *, query):
-		"""Search for the song and play it"""
+		"""[song] - search and play the song"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -100,7 +100,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(name="plPlay")
 	async def plPlay(self, ctx, playlistName):
-		"""Play the stored playlist"""
+		"""[playlist] - play the given playlist"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -155,7 +155,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(name="next")
 	async def next(self, ctx):
-		"""Plays the next song"""
+		"""Play the next song"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -166,7 +166,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(name="shuffle")
 	async def shuffle(self, ctx):
-		"""Next song is random / in order"""
+		"""Turn shuffle on / off"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -177,7 +177,7 @@ class MusicCog(commands.Cog):
 
 	@commands.command(name="loop")
 	async def loop(self, ctx):
-		"""Loops the queue"""
+		"""Loop the queue"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):

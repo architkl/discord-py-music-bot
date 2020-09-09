@@ -15,8 +15,9 @@ async def on_ready():
 	bot.load_extension('cogs.music')
 	bot.load_extension('cogs.storage')
 
-@bot.command(name='stop')
-async def stop(ctx):
+@bot.command(name='turnOff')
+async def turnOff(ctx):
+	"""Stop the bot"""
 	await ctx.send(embed=Embed(title="Bye!", colour=discord.Color.blue()))
 	await bot.close()
 	print("Logged Out")
