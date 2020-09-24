@@ -8,7 +8,7 @@ class StorageCog(commands.Cog):
 		self.playlistPath = os.path.join(os.path.dirname(os.path.realpath('__file__')), 'Playlists/')
 
 
-	@commands.command(name='createPlaylist')
+	@commands.command(name='createPl', aliases=["crPl"])
 	async def createPlaylist(self, ctx, playlistName):
 		"""[playlist] - create playlist with this name"""
 		res = re.match(os.getenv('FILE_NAME_REGEX'), playlistName)
@@ -26,7 +26,7 @@ class StorageCog(commands.Cog):
 		with open(name, "w") as f:
 			await ctx.send("Playlist created successfully")
 
-	@commands.command(name='removePlaylist')
+	@commands.command(name='removePl')
 	async def removePlaylist(self, ctx, playlistName):
 		"""[playlist] - remove playlist with this name"""
 		name = self.playlistPath + playlistName + ".txt"
@@ -39,7 +39,7 @@ class StorageCog(commands.Cog):
 
 		await ctx.send(playlistName + " removed successfully")
 
-	@commands.command(name='showPlaylists')
+	@commands.command(name='showPl')
 	async def showPlaylists(self, ctx):
 		"""Show all playlists"""
 		ls = []
@@ -54,7 +54,7 @@ class StorageCog(commands.Cog):
 
 		await ctx.send(embed=embed)
 
-	@commands.command(name='describePlaylist')
+	@commands.command(name='describePl', aliases=["desPl"])
 	async def describePlaylist(self, ctx, playlistName):
 		"""[playlist] - show songs in this playlist"""
 		name = self.playlistPath + playlistName + ".txt"
@@ -73,7 +73,7 @@ class StorageCog(commands.Cog):
 
 		await ctx.send(embed=embed)
 
-	@commands.command(name='addSong')
+	@commands.command(name='addSong', aliases=["addS"])
 	async def addSong(self, ctx, playlistName, *, songName):
 		"""[playlist][song] - add song to playlist"""
 		name = self.playlistPath + playlistName + ".txt"
@@ -97,7 +97,7 @@ class StorageCog(commands.Cog):
 
 		await ctx.send("Song added successfully")
 
-	@commands.command(name='removeSong')
+	@commands.command(name='removeSong', aliases=["rS"])
 	async def removeSong(self, ctx, playlistName, *, songName):
 		"""[playlist][song] - remove song from playlist"""
 		name = self.playlistPath + playlistName + ".txt"

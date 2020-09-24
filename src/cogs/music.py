@@ -17,12 +17,14 @@ class MusicCog(commands.Cog):
 		join - connect our bot to a voice channel
 		disconnect - disconnect the bot from the voice channel
 		play - play the given song
-		plPlay - play the given playlist
+		playPl - play the given playlist
 		pause - pause/resume the player
 		next - go to next song
 		shuffle - (shuffle/unshuffle) next song is picked up randomly from the queue (the queue is not shuffled!)
 		loop - loops the queue
-		track_position - get position of current song
+		nowPlaying - get position of current song
+		queue - display queue
+		remove - remove song with given index from queue
 		track_hook - disconnect player if no songs are in queue
 		connect_to - create websocket for connection to voice channel
 		can_interact - check whether the user can interact with the bot
@@ -33,7 +35,7 @@ class MusicCog(commands.Cog):
 		self.bot.lavalink = lavalink.Client(self.bot.user.id)
 		self.bot.lavalink.add_node("localhost", 2333, "youshallnotpass", "eu", "music-node")
 		self.bot.add_listener(self.bot.lavalink.voice_update_handler, "on_socket_response")
-		self.bot.lavalink.add_event_hook(self.track_hook)
+		# self.bot.lavalink.add_event_hook(self.track_hook)
 		self.playlistPath = os.path.join(os.path.dirname(os.path.realpath("__file__")), "Playlists/")
 
 	@commands.command(name="join")
@@ -56,9 +58,9 @@ class MusicCog(commands.Cog):
 		else:
 			await ctx.send(embed=create_embed("You're not in a voice channel!", color=discord.Color.orange()))
 
-	@commands.command(aliases=["dc"])
+	@commands.command(name="disconnect", aliases=["dc"])
 	async def disconnect(self, ctx):
-		""" Disconnect the bot from the voice channel"""
+		""" Disconnect the bot from the voice channel [dc]"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -73,9 +75,9 @@ class MusicCog(commands.Cog):
 		await self.connect_to(ctx.guild.id, None)
 		await ctx.send(embed=create_embed("*⃣  | Disconnected", color=discord.Color.red()))
 
-	@commands.command(name="play")
+	@commands.command(name="play", aliases=["p"])
 	async def play(self, ctx, *, query):
-		"""[song] - search and play the song"""
+		"""[song] - search and play the song [p]"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -98,8 +100,8 @@ class MusicCog(commands.Cog):
 		if not player.is_playing:
 			await player.play()
 
-	@commands.command(name="plPlay")
-	async def plPlay(self, ctx, playlistName):
+	@commands.command(name="playPl")
+	async def playPl(self, ctx, playlistName):
 		"""[playlist] - play the given playlist"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
@@ -153,9 +155,9 @@ class MusicCog(commands.Cog):
 		await player.set_pause(not(player.paused))
 		await ctx.send(embed=create_embed("Paused!" if player.paused else "Playing!"))
 
-	@commands.command(name="next")
+	@commands.command(name="next", aliases=["n"])
 	async def next(self, ctx):
-		"""Play the next song"""
+		"""Play the next song [n]"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -164,9 +166,9 @@ class MusicCog(commands.Cog):
 		await player.skip()
 		await ctx.send(embed=create_embed("Skipping current song!"))
 
-	@commands.command(name="shuffle")
+	@commands.command(name="shuffle", aliases=["sh"])
 	async def shuffle(self, ctx):
-		"""Turn shuffle on / off"""
+		"""Turn shuffle on / off [sh]"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -186,9 +188,9 @@ class MusicCog(commands.Cog):
 		player.set_repeat(not(player.repeat))
 		await ctx.send(embed=create_embed("Looping enabled!" if player.repeat else "Looping disabled!"))
 
-	@commands.command(name="trackPosition")
-	async def track_position(self, ctx):
-		"""Get the current position of song"""
+	@commands.command(name="nowPlaying", aliases=["np"])
+	async def nowPlaying(self, ctx):
+		"""Get the current position of song [np]"""
 		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
 		if not (await self.can_interact(ctx)):
@@ -198,6 +200,59 @@ class MusicCog(commands.Cog):
 		await ctx.send(embed=create_embed("Now Playing", str(player.current.title) +":\n" \
 			+ lavalink.format_time(player.position) + " / " \
 			+ lavalink.format_time(player.current.duration)))
+
+	@commands.command(name="queue", aliases=["q"])
+	async def queue(self, ctx):
+		"""Display queue [q]"""
+		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+		if not (await self.can_interact(ctx)):
+			return
+		
+		desc = ""
+		if (len(player.queue) == 0 and not(player.current)):
+			desc = "Empty Queue"
+		else:
+			desc = "1. " + player.current.title
+			for i in range(0, len(player.queue)):
+				desc = desc + '\n' + str(i+2) + ". " + player.queue[i].title
+
+		await ctx.send(embed=create_embed("Queue", desc))
+
+	@commands.command(name="remove", aliases=["r"])
+	async def remove(self, ctx, idx):
+		"""[idx] - Remove song with given index from queue [r]"""
+		player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+		if not (await self.can_interact(ctx)):
+			return
+
+		# convert argument to int
+		try:
+			idx = int(idx)
+
+		# look out for ValueError
+		except ValueError:
+			return await ctx.send(embed=create_embed("Enter index of song", color=discord.Color.red()))
+
+		# check if index is valid
+		if ((idx < 1) or (idx > len(player.queue)+1)):
+			return await ctx.send(embed=create_embed("Enter proper index", color=discord.Color.red()))
+
+		if not player.current:
+			return await ctx.send(embed=create_embed("Empty queue", color=discord.Color.red()))
+
+		# 1 means current song
+		if (idx == 1):
+			removed = player.current.title
+			player.skip()
+
+		# player.queue doesm't contain current song so -1 to account for that and -1 for 0-based indexing
+		else:
+			removed = player.queue[idx-2].title
+			del player.queue[idx-2]
+
+		await ctx.send(embed=create_embed(removed + " removed"))
 
 	async def track_hook(self, event):
 		if isinstance(event, lavalink.events.QueueEndEvent):
